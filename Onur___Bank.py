@@ -297,3 +297,154 @@ if is_logged_in:
                     print(f"Withdrawal commission:        {withdrawal_fee:.2f} AZN")
                     print(f"Amount deducted from account: {total_deducted:.2f} AZN")
                     print(f"Cash paid out:                {withdraw_cash:.2f} AZN")
+        # 5. Transfer Money
+        elif choice == "5":
+            print("Transfer Money is selected")
+            if current_user["daily_transfers"] < 5:
+                try:
+                    recipient_acc = int(input("Include recipient account number: "))
+                except ValueError:
+                    print("\nError: Invalid account number format")
+                    continue
+                
+                recipient_user = None
+                for u in data["users"]:
+                    if isinstance(u, dict) and u.get("account_number") == recipient_acc:
+                        recipient_user = u
+                        break
+                        
+                if recipient_user:
+                    if recipient_user["user"] == current_user["user"]:
+                        print("\nError: You cannot transfer money to your own account!")
+                    else:
+                        print(f"\nRecipient found: {recipient_user['user']}")
+                        try:
+                            transfer_cash = float(input("Include transfer cash: "))
+                        except ValueError:
+                            print("\nError: Invalid amount format")
+                            continue
+
+                        if transfer_cash <= 0 or current_user["balance"] < transfer_cash:
+                            print("\nError: Invalid transfer amount or insufficient balance")     
+                        else:       
+                            confirmation = input("Confirm transfer (Y/N): ").upper()
+                            if confirmation == "N":
+                                print("\nTransfer cancelled.")
+                            elif confirmation == "Y":
+                                sender_balance_before = current_user["balance"]
+                                current_user["daily_transfers"] += 1
+                                current_user["balance"] -= transfer_cash
+                                sender_balance_after = current_user["balance"]
+                                
+                                tx_id_sender = f"TXN{len(current_user.get('transactions', [])) + 1:04d}"
+                                tx_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                
+                                if "transactions" not in current_user:
+                                    current_user["transactions"] = []
+                                    
+                                current_user["transactions"].append({
+                                    "id": tx_id_sender,
+                                    "date": tx_time,
+                                    "type": "Transfer Sent",
+                                    "recipient_account": recipient_user["account_number"],
+                                    "amount": -transfer_cash,
+                                    "balance_before": sender_balance_before,
+                                    "balance_after": sender_balance_after
+                                })
+
+                                recipient_balance_before = recipient_user["balance"]
+                                recipient_user["balance"] += transfer_cash
+                                recipient_balance_after = recipient_user["balance"]
+                                
+                                tx_id_rec = f"TXN{len(recipient_user.get('transactions', [])) + 1:04d}"
+                                if "transactions" not in recipient_user:
+                                    recipient_user["transactions"] = []
+                                    
+                                recipient_user["transactions"].append({
+                                    "id": tx_id_rec,
+                                    "date": tx_time,
+                                    "type": "Transfer Received",
+                                    "sender_account": current_user["account_number"],
+                                    "amount": transfer_cash,
+                                    "balance_before": recipient_balance_before,
+                                    "balance_after": recipient_balance_after
+                                })
+                                
+                                with open(DB_FILE, "w", encoding="utf-8") as file:
+                                    json.dump(data, file, indent=4)
+                                    
+                                print(f"\nSender: {current_user['user']}")
+                                print(f"Recipient account: {recipient_user['account_number']}")
+                                print(f"Recipient: {recipient_user['user']}")
+                                print(f"Amount: {transfer_cash:.2f} AZN")
+                                print("\nTransfer successful!")
+                                print(f"Sender new balance: {current_user['balance']:.2f} AZN")
+                            else:
+                                print("\nError: Invalid confirmation")
+                else:
+                    print("\nError: Invalid account number")
+            else:
+                print("\nError: Daily transfer limit exceeded (5 times)")
+
+        # 6. Transaction History
+        elif choice == "6":
+            print("Transaction History is selected")
+            print("\n=========== TRANSACTION HISTORY ===========")
+            transactions = current_user.get("transactions", [])
+            if not transactions:
+                print("No transaction history available for this account.")
+            else:
+                for tx in transactions[-10:]:
+                    print(f"ID: {tx['id']}")
+                    print(f"Date: {tx['date']}")
+                    print(f"Type: {tx['type']}")
+                    if "recipient_account" in tx:
+                        print(f"Recipient account: {tx['recipient_account']}")
+                    if "sender_account" in tx:
+                        print(f"Sender account: {tx['sender_account']}")
+                    print(f"Amount: {tx['amount']:.2f} AZN")
+                    if "fee" in tx and tx["fee"] > 0:
+                        print(f"Withdrawal Commission: {tx['fee']:.2f} AZN")
+                    print(f"Balance before: {tx['balance_before']:.2f} AZN")
+                    print(f"Balance after: {tx['balance_after']:.2f} AZN")
+                    print("-" * 35)
+            print("===========================================")
+
+        # 7. Daily Limits
+        elif choice == "7":
+            fee_remaining = 500.0 - current_user["daily_withdrawals"]
+            if fee_remaining < 0:
+                fee_remaining = 0.0
+            print("=========== DAILY LIMITS ===========")
+            print(f"Deposit used: {current_user['daily_deposits']:.2f} / 2000 AZN")
+            print(f"Deposit remaining:    {2000-current_user['daily_deposits']:.2f} AZN")
+            print(f"Cash withdrawn:    {current_user['daily_withdrawals']:.2f} / 1000 AZN")
+            print(f"Cash withdrawal remaining:    {1000-current_user['daily_withdrawals']:.2f} AZN")
+            print(f"Fee-free cash remaining: {fee_remaining:.2f} AZN")
+            print(f"Daily transfers used: {current_user['daily_transfers']} / 5")
+            print("====================================")
+
+        # 8. Change Password
+        elif choice == "8":
+            print("Change Password is selected")
+            old_pass = input("Enter your current password: ")
+            if old_pass == current_user["password"]:
+                new_pass = input("Enter new password: ")
+                current_user["password"] = new_pass
+                with open(DB_FILE, "w", encoding="utf-8") as file:
+                    json.dump(data, file, indent=4)
+                print("\nPassword successfully changed!")
+            else:
+                print("\nError: Incorrect current password.")
+
+        # 9. Logout
+        elif choice == "9":
+            print("\nLogged out successfully.")
+            break
+
+        # 0. Exit
+        elif choice == "0":
+            print("\nThank you for using ONURbank. Goodbye!")
+            exit()
+        else:
+            print("\nError: Invalid choice. Please select from the menu.")
