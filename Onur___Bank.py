@@ -427,15 +427,33 @@ if is_logged_in:
         # 8. Change Password
         elif choice == "8":
             print("Change Password is selected")
-            old_pass = input("Enter your current password: ")
-            if old_pass == current_user["password"]:
-                new_pass = input("Enter new password: ")
-                current_user["password"] = new_pass
-                with open(DB_FILE, "w", encoding="utf-8") as file:
-                    json.dump(data, file, indent=4)
-                print("\nPassword successfully changed!")
+            verify_password = input("Include your current password: ")
+            verify_password_1 = input("Include your current password again: ")
+            if verify_password != verify_password_1:
+                print("\nError: Passwords do not match")
+            elif verify_password == current_user["password"]:
+                new_password = input("Include your new password: ")
+                new_password_1 = input("Include your new password again: ")
+                if new_password != new_password_1:
+                    print("\nError: Passwords do not match")
+                elif new_password == current_user["password"]:
+                    print("\nError: New password cannot be the same as the current password")
+                elif len(new_password) < 8:
+                    print("\nError: Password must be at least 8 characters long")
+                elif not any(char.isupper() for char in new_password):
+                    print("\nError: Password must contain at least one uppercase letter")
+                elif not any(char.islower() for char in new_password):
+                    print("\nError: Password must contain at least one lowercase letter")
+                elif not any(char.isdigit() for char in new_password):
+                    print("\nError: Password must contain at least one digit")
+                else:
+                    current_user["password"] = new_password
+                    print("\nPassword changed successfully!")
+                    
+                    with open(DB_FILE, "w", encoding="utf-8") as file:
+                        json.dump(data, file, indent=4)
             else:
-                print("\nError: Incorrect current password.")
+                print("\nError: Current password is incorrect")
 
         # 9. Logout
         elif choice == "9":
